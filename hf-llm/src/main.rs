@@ -1,6 +1,14 @@
 use clap::{Command, Arg};
+use hf_hub::Cache;
 
 fn main() {
+    let cache = Cache::default();
+    
+    match cache.token() {
+        Some(token) => println!("Token: {}", token),
+        None => println!("Token not found or error reading file"),
+    }    
+ 
     let matches = Command::new("hf-llm.rs")
         .version("0.1.0")
         .author("VB")
