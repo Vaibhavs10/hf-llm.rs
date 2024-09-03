@@ -7,6 +7,7 @@ HF-LLM.rs is a CLI tool for accessing Large Language Models (LLMs) like Llama 3.
 - **Model Selection**: Choose from a variety of models available & deployed on Hugging Face infrastructure.
 - **Input Prompt**: Provide an input prompt to generate responses.
 - **Streaming Output**: Receive responses in real-time as the model generates output.
+- **Chat Mode**: Start an interactive chat session with the LLM.
 
 ## Installation
 
@@ -36,6 +37,12 @@ To use HF-LLM.rs, follow these steps:
 
 ```
 cargo run --release -- -m "meta-llama/Meta-Llama-3.1-70B-Instruct" -p "How to make a dangerously spicy ramen?"
+```
+
+You can also use the chat mode to start an interactive chat session with the LLM.
+
+```
+cargo run --release -- -m "meta-llama/Meta-Llama-3.1-70B-Instruct" -c
 ```
 
 ## License
