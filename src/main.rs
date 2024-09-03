@@ -5,6 +5,7 @@ use serde_json::json;
 use tokio;
 use futures_util::StreamExt;
 use std::io::{Write, stdin};
+use colored::Colorize;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -102,7 +103,7 @@ async fn send_request(client: &Client, url: &str, token: String, model_name: &st
                 if json_str != "[DONE]" {
                     if let Ok(json) = serde_json::from_str::<serde_json::Value>(json_str) {
                         if let Some(content) = json["choices"][0]["delta"]["content"].as_str() {
-                            print!("{}", content);
+                            print!("{}", content.green());
                             std::io::stdout().flush()?;
                             full_response.push_str(content);
                         }
