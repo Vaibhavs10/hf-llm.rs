@@ -35,7 +35,7 @@ HF-LLM.rs is a CLI tool for accessing Large Language Models (LLMs) like Llama 3.
 To use HF-LLM.rs, follow these steps:
 
 ```
-cargo run --release -- -m <model-name> -p "Hello, how are you?"
+cargo run --release -- -m "meta-llama/Meta-Llama-3.1-70B-Instruct" -p "How to make a dangerously spicy ramen?"
 ```
 
 ## License
