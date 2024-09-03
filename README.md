@@ -47,7 +47,7 @@ You can also use the chat mode to start an interactive chat session with the LLM
 cargo run --release -- -m "meta-llama/Meta-Llama-3.1-70B-Instruct" -c
 ```
 
-Note: Make sure to run `huggingface-cli login` to login to your Hugging Face account to access some of the models.
+Note: Make sure to run `huggingface-cli login` to log into your Hugging Face account to access some of the models.
 
 ## License
 
