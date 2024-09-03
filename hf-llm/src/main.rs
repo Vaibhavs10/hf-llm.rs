@@ -3,9 +3,11 @@ use hf_hub::Cache;
 use reqwest::Client;
 use serde_json::json;
 use tokio;
+use futures_util::StreamExt;
+use std::io::Write;
 
 #[tokio::main]
-async fn main() -> Result<(), reqwest::Error> {
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let matches = Command::new("hf-llm.rs")
         .version("0.1.0")
         .author("VB")
@@ -36,20 +38,36 @@ async fn main() -> Result<(), reqwest::Error> {
         
         let client = Client::new();
         let res = client
-           .post(url)
+           .post(&url)
            .header("Authorization", format!("Bearer {}", token))
            .header("Content-Type", "application/json")
            .json(&json!({
                 "model": model_name,
                 "messages": [{"role": "user", "content": prompt}],
-                "max_tokens": 500,
-                "stream": false
+                "max_tokens": 2048,
+                "stream": true
             }))
            .send()
            .await?;
         
-        let response = res.json::<serde_json::Value>().await?;
-        println!("{:?}", response);
+        let mut stream = res.bytes_stream();
+        while let Some(chunk) = stream.next().await {
+            let chunk = chunk?;
+            if let Ok(text) = String::from_utf8(chunk.to_vec()) {
+                if text.starts_with("data: ") {
+                    let json_str = text.trim_start_matches("data: ");
+                    if json_str != "[DONE]" {
+                        if let Ok(json) = serde_json::from_str::<serde_json::Value>(json_str) {
+                            if let Some(content) = json["choices"][0]["delta"]["content"].as_str() {
+                                print!("{}", content);
+                                std::io::stdout().flush()?;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        println!();
         
         Ok(())
     } else {
