@@ -2,9 +2,10 @@ use clap::{Command, Arg};
 use hf_hub::Cache;
 use reqwest::Client;
 use serde_json::json;
+use tokio;
 
-fn main() {
-
+#[tokio::main]
+async fn main() -> Result<(), reqwest::Error> {
     let matches = Command::new("hf-llm.rs")
         .version("0.1.0")
         .author("VB")
@@ -30,36 +31,29 @@ fn main() {
 
     let cache = Cache::default();
 
-    #[tokio::main]
-    async fn main() -> Result<(), reqwest::Error> {
+    if let Some(token) = cache.token() {
+        let url = format!("https://api-inference.huggingface.co/models/{}/v1/chat/completions", model_name);
         
-        if let Some(token) = cache.token() {
-
-            let api_key = "token";
-            let model = "meta-llama/Meta-Llama-3-70B-Instruct";
-            let url = format!("https://api-inference.huggingface.co/models/{}/v1/chat/completions", model);
+        let client = Client::new();
+        let res = client
+           .post(url)
+           .header("Authorization", format!("Bearer {}", token))
+           .header("Content-Type", "application/json")
+           .json(&json!({
+                "model": model_name,
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": 500,
+                "stream": false
+            }))
+           .send()
+           .await?;
         
-            let client = Client::new();
-            let res = client
-               .post(url)
-               .header("Authorization", format!("Bearer {}", api_key))
-               .header("Content-Type", "application/json")
-               .json(&json!({
-                    "model": model,
-                    "messages": [{"role": "user", "content": prompt}],
-                    "max_tokens": 500,
-                    "stream": false
-                }))
-               .send()
-               .await?;
+        let response = res.json::<serde_json::Value>().await?;
+        println!("{:?}", response);
         
-            let response = res.json::<serde_json::Value>().await?;
-            println!("{:?}", response);
-        
-            Ok(())
-        } else {
-            println!("Token not found, please run `huggingface-cli login`");
-            std::process::exit(1);
-        } 
-    }    
+        Ok(())
+    } else {
+        println!("Token not found, please run `huggingface-cli login`");
+        std::process::exit(1);
+    }
 }
