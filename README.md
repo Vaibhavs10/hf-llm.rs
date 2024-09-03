@@ -2,6 +2,8 @@
 
 HF-LLM.rs is a CLI tool for accessing Large Language Models (LLMs) like Llama 3.1, Mistral, Gemma 2, Cohere and much more hosted on Hugging Face. It allows you to interact with various models, provide input, and receive responses in a terminal environment.
 
+P.S. You can find the list of models supported by this CLI [here](https://huggingface.co/models?inference=warm&pipeline_tag=text-generation&sort=trending) - these keep getting updated as new models are released on the Hugging Face Hub.
+
 ## Features
 
 - **Model Selection**: Choose from a variety of models available & deployed on Hugging Face infrastructure.
