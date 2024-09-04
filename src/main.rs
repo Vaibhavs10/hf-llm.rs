@@ -127,6 +127,12 @@ async fn send_request(
         .send()
         .await?;
 
+    let status = res.status();
+    if status != 200 {
+        let error_message = res.text().await?;
+        return Err(format!("HTTP Error {}: {}", status, error_message).into());
+    }
+
     let mut stream = res.bytes_stream();
     let mut full_response = String::new();
     while let Some(chunk) = stream.next().await {
