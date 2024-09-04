@@ -1,11 +1,11 @@
-use clap::{Command, Arg};
+use clap::{Arg, Command};
+use colored::Colorize;
+use futures_util::StreamExt;
 use hf_hub::Cache;
 use reqwest::Client;
 use serde_json::json;
+use std::io::{stdin, Write};
 use tokio;
-use futures_util::StreamExt;
-use std::io::{Write, stdin};
-use colored::Colorize;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -13,35 +13,54 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .version("0.1.0")
         .author("VB")
         .about("A CLI to access LLMs hosted on Hugging Face")
-        .arg(Arg::new("model-name")
-            .short('m')
-            .long("model-name")
-            .value_name("MODEL")
-            .help("Specify the Hugging Face Hub ID of the model to use.")
-            .required(true)
-            )
-        .arg(Arg::new("prompt")
-            .short('p')
-            .long("prompt")
-            .value_name("PROMPT")
-            .help("Specify the prompt to use.")
-            .required(false)
-            )
-        .arg(Arg::new("chat")
-            .short('c')
-            .long("chat")
-            .help("Start a chat session with the model.")
-            .action(clap::ArgAction::SetTrue)
-            )
+        .arg(
+            Arg::new("model-name")
+                .short('m')
+                .long("model-name")
+                .value_name("MODEL")
+                .help("Specify the Hugging Face Hub ID of the model to use.")
+                .required(true),
+        )
+        .arg(
+            Arg::new("prompt")
+                .short('p')
+                .long("prompt")
+                .value_name("PROMPT")
+                .help("Specify the prompt to use.")
+                .required(false),
+        )
+        .arg(
+            Arg::new("chat")
+                .short('c')
+                .long("chat")
+                .help("Start a chat session with the model.")
+                .action(clap::ArgAction::SetTrue),
+        )
+        .arg(
+            Arg::new("max-tokens")
+                .short('t')
+                .long("max-tokens")
+                .value_name("MAX_TOKENS")
+                .help("Specify the maximum number of tokens for the model's response.")
+                .default_value("2048"),
+        )
         .get_matches();
 
     let model_name = matches.get_one::<String>("model-name").unwrap();
     let chat_mode = matches.get_flag("chat");
+    let max_tokens = matches
+        .get_one::<String>("max-tokens")
+        .unwrap()
+        .parse::<u32>()
+        .expect("Failed to parse max-tokens as a positive integer");
 
     let cache = Cache::default();
 
     if let Some(token) = cache.token() {
-        let url = format!("https://api-inference.huggingface.co/models/{}/v1/chat/completions", model_name);
+        let url = format!(
+            "https://api-inference.huggingface.co/models/{}/v1/chat/completions",
+            model_name
+        );
         let client = Client::new();
 
         let mut messages = Vec::new();
@@ -61,17 +80,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                 messages.push(json!({"role": "user", "content": user_input}));
 
-                let response = send_request(&client, &url, token.clone(), model_name, &messages).await?;
+                let response = send_request(
+                    &client,
+                    &url,
+                    token.clone(),
+                    model_name,
+                    &messages,
+                    max_tokens,
+                )
+                .await?;
                 messages.push(json!({"role": "assistant", "content": response}));
             }
         } else if let Some(prompt) = matches.get_one::<String>("prompt") {
             messages.push(json!({"role": "user", "content": prompt}));
-            send_request(&client, &url, token, model_name, &messages).await?;
+            send_request(&client, &url, token, model_name, &messages, max_tokens).await?;
         } else {
             println!("Please provide either a prompt or use chat mode.");
             std::process::exit(1);
         }
-        
+
         Ok(())
     } else {
         println!("Token not found, please run `huggingface-cli login`");
@@ -79,7 +106,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 }
 
-async fn send_request(client: &Client, url: &str, token: String, model_name: &str, messages: &Vec<serde_json::Value>) -> Result<String, Box<dyn std::error::Error>> {
+async fn send_request(
+    client: &Client,
+    url: &str,
+    token: String,
+    model_name: &str,
+    messages: &Vec<serde_json::Value>,
+    max_tokens: u32,
+) -> Result<String, Box<dyn std::error::Error>> {
     let res = client
         .post(url)
         .header("Authorization", format!("Bearer {}", token))
@@ -87,7 +121,7 @@ async fn send_request(client: &Client, url: &str, token: String, model_name: &st
         .json(&json!({
             "model": model_name,
             "messages": messages,
-            "max_tokens": 2048,
+            "max_tokens": max_tokens,
             "stream": true
         }))
         .send()
