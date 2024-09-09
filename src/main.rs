@@ -5,6 +5,7 @@ use hf_hub::Cache;
 use reqwest::Client;
 use serde_json::json;
 use std::io::{stdin, Write};
+use std::process::Command as ProcessCommand;
 use tokio;
 
 #[tokio::main]
@@ -74,8 +75,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 stdin().read_line(&mut user_input)?;
                 user_input = user_input.trim().to_string();
 
-                if user_input.to_lowercase() == "exit" {
-                    break;
+                match user_input.to_lowercase().as_str() {
+                    "exit" => break,
+                    "clear" => {
+                        messages.clear();
+                        clear_terminal();
+                        println!("Chat history cleared. Starting a new conversation.");
+                        continue;
+                    }
+                    _ => {}
                 }
 
                 messages.push(json!({"role": "user", "content": user_input}));
@@ -103,6 +111,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     } else {
         println!("Token not found, please run `huggingface-cli login`");
         std::process::exit(1);
+    }
+}
+
+fn clear_terminal() {
+    if cfg!(target_os = "windows") {
+        ProcessCommand::new("cmd")
+            .args(&["/C", "cls"])
+            .status()
+            .unwrap();
+    } else {
+        ProcessCommand::new("clear").status().unwrap();
     }
 }
 
