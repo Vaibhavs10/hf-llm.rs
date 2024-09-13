@@ -6,6 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+anyhow = "1.0.87"
 clap = "4.5.16"
 colored = "2.1.0"
 futures-util = "0.3.30"

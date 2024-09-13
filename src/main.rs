@@ -1,3 +1,4 @@
+use anyhow::anyhow;
 use clap::{Arg, Command};
 use colored::Colorize;
 use futures_util::StreamExt;
@@ -9,7 +10,7 @@ use std::process::Command as ProcessCommand;
 use tokio;
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> anyhow::Result<()>{
     let matches = Command::new("hf-llm.rs")
         .version("0.1.0")
         .author("VB")
@@ -107,7 +108,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             std::process::exit(1);
         }
 
-        Ok(())
+        anyhow::Ok(())
     } else {
         println!("Token not found, please run `huggingface-cli login`");
         std::process::exit(1);
@@ -132,7 +133,7 @@ async fn send_request(
     model_name: &str,
     messages: &Vec<serde_json::Value>,
     max_tokens: u32,
-) -> Result<String, Box<dyn std::error::Error>> {
+) -> anyhow::Result<String> {
     let res = client
         .post(url)
         .header("Authorization", format!("Bearer {}", token))
@@ -149,7 +150,7 @@ async fn send_request(
     let status = res.status();
     if status != 200 {
         let error_message = res.text().await?;
-        return Err(format!("HTTP Error {}: {}", status, error_message).into());
+        return Err(anyhow!("HTTP Error {}: {}", status, error_message));
     }
 
     let mut stream = res.bytes_stream();
