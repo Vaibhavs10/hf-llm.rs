@@ -80,9 +80,6 @@ async fn main() -> anyhow::Result<()>{
             
             let mapping_json: serde_json::Value = mapping_resp.json().await?;
             
-            // Print the mapping JSON and exit
-            println!("Mapping JSON: {}", serde_json::to_string_pretty(&mapping_json)?);
-
             // First check if the model exists in the conversational category
             let model_info = mapping_json.get("conversational")
                 .and_then(|conv| conv.get(model_name))
@@ -105,7 +102,7 @@ async fn main() -> anyhow::Result<()>{
         let url = if provider == "hf-inference" {
             format!("https://router.huggingface.co/{}/models/{}/v1/chat/completions", provider, resolved_model)
         } else {
-            format!("https://router.huggingface.co/{}/{}/v1/chat/completions", provider, resolved_model)
+            format!("https://router.huggingface.co/{}/v1/chat/completions", provider)
         };
         let client = Client::new();
 
@@ -137,7 +134,7 @@ async fn main() -> anyhow::Result<()>{
                     &client,
                     &url,
                     token.clone(),
-                    resolved_model.as_str(),
+                    &resolved_model,
                     &messages,
                     max_tokens,
                 )
@@ -146,7 +143,7 @@ async fn main() -> anyhow::Result<()>{
             }
         } else if let Some(prompt) = matches.get_one::<String>("prompt") {
             messages.push(json!({"role": "user", "content": prompt}));
-            send_request(&client, &url, token, resolved_model.as_str(), &messages, max_tokens).await?;
+            send_request(&client, &url, token, &resolved_model, &messages, max_tokens).await?;
         } else {
             println!("Please provide either a prompt or use chat mode.");
             std::process::exit(1);
