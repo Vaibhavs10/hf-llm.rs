@@ -24,6 +24,14 @@ async fn main() -> anyhow::Result<()>{
                 .required(true),
         )
         .arg(
+            Arg::new("provider")
+                .short('r')
+                .long("provider")
+                .value_name("PROVIDER")
+                .help("Specify the provider to use.")
+                .required(true),
+        )
+        .arg(
             Arg::new("prompt")
                 .short('p')
                 .long("prompt")
@@ -49,6 +57,7 @@ async fn main() -> anyhow::Result<()>{
         .get_matches();
 
     let model_name = matches.get_one::<String>("model-name").unwrap();
+    let provider = matches.get_one::<String>("provider").unwrap();
     let chat_mode = matches.get_flag("chat");
     let max_tokens = matches
         .get_one::<String>("max-tokens")
@@ -59,10 +68,42 @@ async fn main() -> anyhow::Result<()>{
     let cache = Cache::default();
 
     if let Some(token) = cache.token() {
-        let url = format!(
-            "https://api-inference.huggingface.co/models/{}/v1/chat/completions",
-            model_name
-        );
+        let resolved_model = if provider == "hf-inference" {
+            model_name.clone()
+        } else if provider == "together" || provider == "sambanova" {
+            // Fetch the partner mapping
+            let mapping_url = format!("https://huggingface.co/api/partners/{}/models", provider);
+            let mapping_resp = Client::new().get(&mapping_url).send().await?;
+            if !mapping_resp.status().is_success() {
+                return Err(anyhow!("Failed to fetch partner mapping from {}", mapping_url));
+            }
+            
+            let mapping_json: serde_json::Value = mapping_resp.json().await?;
+            
+            // First check if the model exists in the conversational category
+            let model_info = mapping_json.get("conversational")
+                .and_then(|conv| conv.get(model_name))
+                // If not found in conversational, try text-generation (for 'together' provider)
+                .or_else(|| {
+                    mapping_json.get("text-generation")
+                        .and_then(|tg| tg.get(model_name))
+                })
+                .ok_or_else(|| anyhow!("Model {} not found in partner mapping", model_name))?;
+
+            // Extract the providerId
+            model_info["providerId"]
+                .as_str()
+                .map(|s| s.to_string())
+                .ok_or_else(|| anyhow!("providerId not found for model {}", model_name))?
+        } else {
+            return Err(anyhow!("Invalid provider specified."));
+        };
+
+        let url = if provider == "hf-inference" {
+            format!("https://router.huggingface.co/{}/models/{}/v1/chat/completions", provider, resolved_model)
+        } else {
+            format!("https://router.huggingface.co/{}/v1/chat/completions", provider)
+        };
         let client = Client::new();
 
         let mut messages = Vec::new();
@@ -93,7 +134,7 @@ async fn main() -> anyhow::Result<()>{
                     &client,
                     &url,
                     token.clone(),
-                    model_name,
+                    &resolved_model,
                     &messages,
                     max_tokens,
                 )
@@ -102,7 +143,7 @@ async fn main() -> anyhow::Result<()>{
             }
         } else if let Some(prompt) = matches.get_one::<String>("prompt") {
             messages.push(json!({"role": "user", "content": prompt}));
-            send_request(&client, &url, token, model_name, &messages, max_tokens).await?;
+            send_request(&client, &url, token, &resolved_model, &messages, max_tokens).await?;
         } else {
             println!("Please provide either a prompt or use chat mode.");
             std::process::exit(1);
