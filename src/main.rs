@@ -69,8 +69,9 @@ async fn main() -> anyhow::Result<()>{
 
     if let Some(token) = cache.token() {
         let url = format!(
-            "https://router.huggingface.co/{}/models/v1/chat/completions",
-            provider
+            "https://router.huggingface.co/{}/{}/v1/chat/completions",
+            provider,
+            model_name
         );
         let client = Client::new();
 
