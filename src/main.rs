@@ -24,6 +24,14 @@ async fn main() -> anyhow::Result<()>{
                 .required(true),
         )
         .arg(
+            Arg::new("provider")
+                .short('r')
+                .long("provider")
+                .value_name("PROVIDER")
+                .help("Specify the provider to use.")
+                .required(true),
+        )
+        .arg(
             Arg::new("prompt")
                 .short('p')
                 .long("prompt")
@@ -49,6 +57,7 @@ async fn main() -> anyhow::Result<()>{
         .get_matches();
 
     let model_name = matches.get_one::<String>("model-name").unwrap();
+    let provider = matches.get_one::<String>("provider").unwrap();
     let chat_mode = matches.get_flag("chat");
     let max_tokens = matches
         .get_one::<String>("max-tokens")
@@ -60,8 +69,8 @@ async fn main() -> anyhow::Result<()>{
 
     if let Some(token) = cache.token() {
         let url = format!(
-            "https://api-inference.huggingface.co/models/{}/v1/chat/completions",
-            model_name
+            "https://router.huggingface.co/{}/models/v1/chat/completions",
+            provider
         );
         let client = Client::new();
 
